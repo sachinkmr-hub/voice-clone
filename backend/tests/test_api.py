@@ -421,3 +421,64 @@ def test_dashboard_socket_sends_a_snapshot(client):
         snapshot = socket.receive_json()
         assert snapshot["type"] == "snapshot"
         assert "sessions" in snapshot and "health" in snapshot
+
+
+# ---------------------------------------------------------------------------- console
+
+def test_console_and_static_assets_are_served(client):
+    page = client.get("/console")
+    assert page.status_code == 200
+    body = page.text
+    assert "VoiceGuard" in body
+    assert "/static/console.css" in body and "/static/console.js" in body
+    assert client.get("/static/console.css").status_code == 200
+    assert client.get("/static/console.js").status_code == 200
+
+
+def test_demo_sample_returns_playable_wav(client):
+    response = client.get("/v1/demo/sample?kind=bonafide&seconds=3&speaker=4")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/wav"
+    assert response.headers["X-VoiceGuard-Simulated"] == "true"
+    assert response.content[:4] == b"RIFF"
+
+    import io
+    import wave
+
+    with wave.open(io.BytesIO(response.content), "rb") as handle:
+        assert handle.getframerate() == SR
+        assert handle.getnchannels() == 1
+        assert handle.getnframes() / SR == pytest.approx(3.0, abs=0.2)
+
+
+def test_demo_sample_same_speaker_is_reproducible(client):
+    """The pair demo depends on 'same speaker value' meaning the same voice."""
+    first = client.get("/v1/demo/sample?kind=bonafide&seconds=2&speaker=9&seed=5").content
+    second = client.get("/v1/demo/sample?kind=bonafide&seconds=2&speaker=9&seed=5").content
+    assert first == second
+
+
+def test_demo_sample_rejects_an_unknown_method(client):
+    assert client.get("/v1/demo/sample?kind=cloned&method=nope").status_code == 400
+    assert client.get("/v1/demo/sample?kind=wat").status_code == 422
+
+
+def test_demo_scenarios_are_labelled_as_simulated(client):
+    body = client.get("/v1/demo/scenarios").json()
+    assert "simulated" in body["note"].lower()
+    assert len(body["scenarios"]) >= 4
+    for scenario in body["scenarios"]:
+        assert {"id", "title", "kind", "story", "expect"} <= set(scenario)
+
+
+def test_demo_pair_separates_genuine_from_cloned(client):
+    """The headline demo: same synthetic speaker, real voice vs clone of it."""
+    def score(query, name):
+        wav = client.get(f"/v1/demo/sample?{query}").content
+        return client.post("/v1/analyze/file",
+                           files={"file": (name, wav, "audio/wav")},
+                           data={"language": "hi-IN"}).json()["peak_score"]
+
+    genuine = score("kind=bonafide&seconds=7&speaker=7&language=hi-IN", "g.wav")
+    cloned = score("kind=cloned&method=neural&seconds=7&speaker=7&language=hi-IN", "c.wav")
+    assert cloned > genuine

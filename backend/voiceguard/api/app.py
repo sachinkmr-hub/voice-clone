@@ -23,6 +23,7 @@ from voiceguard.api.deps import AppState
 from voiceguard.api import (
     routes_admin,
     routes_analyze,
+    routes_demo,
     routes_integrations,
     routes_sessions,
     routes_stream,
@@ -57,6 +58,7 @@ TAGS = [
     {"name": "sessions", "description": "Session state, reports, enrolment and erasure."},
     {"name": "admin", "description": "Health, risk profiles, fusion weights, audit."},
     {"name": "integrations", "description": "Reference core-banking approval gate."},
+    {"name": "demo", "description": "Generated demo audio and scenarios (clearly labelled as simulated)."},
 ]
 
 
@@ -109,6 +111,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(routes_sessions.router)
     app.include_router(routes_admin.router)
     app.include_router(routes_integrations.router)
+    app.include_router(routes_demo.router)
 
     if os.path.isdir(STATIC_DIR):
         app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

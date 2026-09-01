@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VoiceGuard — Is this voice real?</title>
+<meta name="description" content="Real-time detection of AI-generated and cloned voices during live calls. SIH26104.">
+<link rel="stylesheet" href="/static/console.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="logo" aria-hidden="true">🛡️</div>
+    <div class="brand">
+      <h1>VoiceGuard</h1>
+      <p>Real-time AI voice-clone detection · SIH26104</p>
+    </div>
+    <div class="top-right">
+      <span class="pill" id="model-pill"><span class="dot"></span><span id="model-text">checking…</span></span>
+      <span class="pill" id="health-pill"><span class="dot"></span><span id="health-text">connecting…</span></span>
+    </div>
+  </header>
+
+  <div class="privacy-banner" id="privacy-banner">
+    <span aria-hidden="true">🔒</span><span id="privacy-text">Loading privacy policy…</span>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="analyze">📼 Analyse a recording</button>
+    <button role="tab" aria-selected="false" data-tab="live">🎙️ Live call</button>
+    <button role="tab" aria-selected="false" data-tab="approval">🏦 Bank approval</button>
+    <button role="tab" aria-selected="false" data-tab="policy">⚙️ Policy &amp; enrolment</button>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════════ ANALYSE ══ -->
+  <section class="panel active" id="panel-analyze" role="tabpanel">
+    <div class="grid side">
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <h2>Drop a call recording</h2>
+          <p class="sub">WAV, FLAC or OGG. Nothing is written to disk — see the banner above.</p>
+          <div class="dropzone" id="dropzone" tabindex="0" role="button"
+               aria-label="Choose or drop an audio file">
+            <div class="icon" aria-hidden="true">🎧</div>
+            <strong>Drop a file, or click to choose</strong>
+            <span>Analysis takes about a second per minute of audio</span>
+          </div>
+          <input type="file" id="file-input" accept="audio/*" class="sr">
+        </div>
+
+        <div class="card">
+          <h2>No file handy?</h2>
+          <p class="sub">Generate a labelled sample. Both use the <em>same</em> synthetic
+             speaker, so the pair is a real voice and a clone of it.</p>
+          <div class="chips" id="scenario-chips"><span class="empty" style="padding:8px">Loading…</span></div>
+        </div>
+
+        <div class="card">
+          <h2>Call context <span style="font-weight:400;color:var(--ink-faint);font-size:12px">(optional)</span></h2>
+          <p class="sub">Context shifts the alerting thresholds — never the voice score itself.</p>
+          <div class="grid two" style="gap:11px">
+            <div>
+              <label class="field" for="ctx-amount">Transaction amount (₹)</label>
+              <input type="number" id="ctx-amount" value="0" min="0" step="10000">
+            </div>
+            <div>
+              <label class="field" for="ctx-profile">Risk profile</label>
+              <select id="ctx-profile"><option value="default">default</option></select>
+            </div>
+            <div>
+              <label class="field" for="ctx-language">Language / accent</label>
+              <select id="ctx-language">
+                <option value="auto">Auto-detect</option>
+                <option value="hi-IN" selected>Hindi (India)</option>
+                <option value="en-IN">English (India)</option>
+                <option value="ta-IN">Tamil (India)</option>
+                <option value="bn-IN">Bengali (India)</option>
+                <option value="mr-IN">Marathi (India)</option>
+                <option value="te-IN">Telugu (India)</option>
+              </select>
+            </div>
+            <div>
+              <label class="field" for="ctx-role">Caller claims to be</label>
+              <input type="text" id="ctx-role" placeholder="e.g. CFO">
+            </div>
+          </div>
+          <div style="margin-top:11px">
+            <label class="field" for="ctx-transcript">Live transcript snippet</label>
+            <textarea id="ctx-transcript" placeholder="Digits are redacted before anything is stored."></textarea>
+          </div>
+          <div class="row tight" style="margin-top:11px">
+            <label style="font-size:12.5px"><input type="checkbox" id="ctx-known"> Known contact</label>
+            <label style="font-size:12.5px;margin-left:10px"><input type="checkbox" id="ctx-verified"> Caller ID attested</label>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div id="result-empty" class="empty">
+            <span class="icon" aria-hidden="true">📊</span>
+            Drop a recording or pick a sample to see the risk assessment.
+          </div>
+          <div id="result" hidden>
+            <div class="gauge-wrap">
+              <svg class="gauge" viewBox="0 0 200 118" role="img" aria-labelledby="gauge-title">
+                <title id="gauge-title">Impersonation risk gauge</title>
+                <path class="gauge-track" d="M 20 105 A 80 80 0 0 1 180 105" stroke-width="15"/>
+                <path class="gauge-arc" id="gauge-arc" d="M 20 105 A 80 80 0 0 1 180 105"
+                      stroke-width="15" stroke="#059669"
+                      stroke-dasharray="251.3" stroke-dashoffset="251.3"/>
+                <text x="100" y="88" text-anchor="middle" class="score-value" id="score-value" fill="#131a35">0</text>
+                <text x="100" y="108" text-anchor="middle" class="score-suffix" fill="#7b86a8">/ 100 risk</text>
+              </svg>
+              <div><span class="band-label band-LOW" id="band-label">LOW</span></div>
+              <p class="headline" id="headline"></p>
+              <div class="action-box b-LOW" id="action-box"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="timeline-card" hidden>
+          <h2>Risk over the call</h2>
+          <p class="sub">One point per 0.5 s hop — this is the live curve, replayed.</p>
+          <svg class="timeline" id="timeline" viewBox="0 0 600 118" preserveAspectRatio="none"></svg>
+          <div class="stat-grid" id="stat-grid" style="margin-top:13px"></div>
+        </div>
+
+        <div class="card" id="factors-card" hidden>
+          <h2>Why</h2>
+          <p class="sub">Ranked contributing evidence, weighted by each layer's share of the decision.</p>
+          <div id="factors"></div>
+          <div id="caveats"></div>
+        </div>
+
+        <div class="card" id="layers-card" hidden>
+          <h2>Detection layers</h2>
+          <p class="sub">A layer that could not run <strong>abstains</strong>. It never votes "genuine" by default.</p>
+          <div id="layers"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════════════════════════════════════ LIVE ══ -->
+  <section class="panel" id="panel-live" role="tabpanel">
+    <div class="grid side">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <h2>Live microphone analysis</h2>
+          <p class="sub">Streams 16 kHz audio over a WebSocket. A new risk score arrives
+             every 0.5 seconds — this is the path the problem statement asks for.</p>
+          <div class="row">
+            <button class="btn" id="mic-start">🎙️ Start streaming</button>
+            <button class="btn danger" id="mic-stop" disabled>⏹ Stop</button>
+          </div>
+          <div class="meter" style="margin-top:14px">
+            <span>Input</span><div class="meter-bar"><div class="meter-fill" id="input-meter"></div></div>
+          </div>
+          <div class="stat-grid" style="margin-top:14px">
+            <div class="stat"><div class="k">Windows</div><div class="v" id="live-windows">0</div></div>
+            <div class="stat"><div class="k">Latency</div><div class="v" id="live-latency">—</div></div>
+            <div class="stat"><div class="k">Elapsed</div><div class="v" id="live-elapsed">0s</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Event log</h2>
+          <p class="sub">Raw protocol frames, so you can see exactly what the server sent.</p>
+          <div class="log" id="live-log"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="gauge-wrap">
+            <svg class="gauge" viewBox="0 0 200 118" role="img" aria-label="Live risk gauge">
+              <path class="gauge-track" d="M 20 105 A 80 80 0 0 1 180 105" stroke-width="15"/>
+              <path class="gauge-arc" id="live-arc" d="M 20 105 A 80 80 0 0 1 180 105"
+                    stroke-width="15" stroke="#059669" stroke-dasharray="251.3" stroke-dashoffset="251.3"/>
+              <text x="100" y="88" text-anchor="middle" class="score-value" id="live-score" fill="#131a35">—</text>
+              <text x="100" y="108" text-anchor="middle" class="score-suffix" fill="#7b86a8">/ 100 risk</text>
+            </svg>
+            <div><span class="band-label band-LOW" id="live-band">IDLE</span></div>
+            <p class="headline" id="live-headline">Press “Start streaming” and speak.</p>
+            <div class="action-box b-LOW" id="live-action" hidden></div>
+          </div>
+          <svg class="timeline" id="live-timeline" viewBox="0 0 600 118" preserveAspectRatio="none"
+               style="margin-top:12px"></svg>
+        </div>
+        <div class="card">
+          <h2>Live evidence</h2>
+          <div id="live-factors"><div class="empty" style="padding:22px">Waiting for audio…</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════════════════════════════════ APPROVAL ══ -->
+  <section class="panel" id="panel-approval" role="tabpanel">
+    <div class="grid two">
+      <div class="card">
+        <h2>Core-banking approval gate</h2>
+        <p class="sub">The reference integration: a transaction is checked against the live
+           voice risk before funds move. This is what makes the score matter.</p>
+        <div style="margin-bottom:11px">
+          <label class="field" for="apr-session">Voice session</label>
+          <select id="apr-session"><option value="">— analyse a call first —</option></select>
+        </div>
+        <div class="grid two" style="gap:11px">
+          <div>
+            <label class="field" for="apr-amount">Amount (₹)</label>
+            <input type="number" id="apr-amount" value="4200000" min="0" step="50000">
+          </div>
+          <div>
+            <label class="field" for="apr-profile">Profile</label>
+            <select id="apr-profile"><option value="wire_transfer">wire_transfer</option></select>
+          </div>
+          <div>
+            <label class="field" for="apr-beneficiary">Beneficiary</label>
+            <input type="text" id="apr-beneficiary" value="ACME Traders Pvt Ltd">
+          </div>
+          <div>
+            <label class="field" for="apr-reference">Reference</label>
+            <input type="text" id="apr-reference" value="TXN-2026-0917">
+          </div>
+        </div>
+        <button class="btn" id="apr-submit" style="margin-top:14px">Request approval</button>
+      </div>
+
+      <div class="card">
+        <h2>Decision</h2>
+        <p class="sub">Returned by <code>POST /v1/integrations/bank/approval</code>.</p>
+        <div id="apr-result"><div class="empty" style="padding:34px">
+          <span class="icon" aria-hidden="true">🏦</span>Submit a transaction to see the decision.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════ POLICY ══ -->
+  <section class="panel" id="panel-policy" role="tabpanel">
+    <div class="grid two">
+      <div class="card">
+        <h2>Risk profiles</h2>
+        <p class="sub">Thresholds are policy, editable at runtime. Change one and re-run the
+           same audio — the model output is unchanged, only the bar for acting on it moves.</p>
+        <table class="profiles" id="profiles-table">
+          <thead><tr><th>Profile</th><th>Elevated</th><th>High</th><th>Critical</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <h2>Speaker enrolment</h2>
+          <p class="sub">Register genuine samples for an identity to switch on layer 3
+             (cross-session consistency). Three or more samples are strongly preferred.</p>
+          <div class="row">
+            <input type="text" id="enrol-identity" placeholder="Identity, e.g. cfo_sharma" style="flex:1;min-width:170px">
+            <button class="btn ghost small" id="enrol-generate">Enrol a demo voice ×3</button>
+          </div>
+          <div id="enrol-list" style="margin-top:13px"></div>
+        </div>
+
+        <div class="card">
+          <h2>System</h2>
+          <div class="stat-grid" id="system-stats"></div>
+          <div class="row" style="margin-top:13px">
+            <button class="btn ghost small" id="btn-reload">Reload model</button>
+            <button class="btn ghost small" id="btn-sweep">Run retention sweep</button>
+            <a class="btn ghost small" href="/docs" target="_blank" rel="noopener"
+               style="text-decoration:none;display:inline-block">Open API docs ↗</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    VoiceGuard · SIH26104 · <a href="/docs">API reference</a> ·
+    Demo audio is simulated and labelled as such — see the model card for what these numbers do and do not mean.
+  </footer>
+</div>
+
+<script src="/static/console.js"></script>
+</body>
+</html>
