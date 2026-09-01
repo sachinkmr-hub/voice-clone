@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+
+# Data / models / runtime
+data/raw/
+data/interim/
+data/corpus/
+*.wav
+*.flac
+*.mp3
+*.ogg
+!backend/tests/fixtures/*.wav
+ml/artifacts/*.joblib
+ml/artifacts/*.pkl
+!ml/artifacts/bootstrap_model.joblib
+*.sqlite3
+*.db
+runtime/
+logs/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
