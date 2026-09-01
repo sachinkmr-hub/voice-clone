@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VoiceGuard — SIH26104 pitch</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+<style>
+:root{
+  --bg:#0b1020; --panel:#151b30; --panel2:#1c2340; --border:#2a3355;
+  --ink:#eef1fa; --soft:#a3aecb; --faint:#6f7b9e;
+  --brand:#818cf8; --bright:#a5b4fc; --cyan:#22d3ee;
+  --low:#34d399; --mid:#fbbf24; --high:#fb923c; --crit:#f87171;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;font-family:var(--sans);color:var(--ink);overflow:hidden;
+  background:radial-gradient(1000px 600px at 12% -10%,#22305c 0%,transparent 55%),
+             radial-gradient(900px 520px at 90% 5%,#1b3550 0%,transparent 52%),var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+.deck{height:100vh;position:relative}
+.slide{
+  position:absolute;inset:0;display:none;flex-direction:column;
+  padding:clamp(28px,4.5vh,56px) clamp(28px,5vw,88px);
+  animation:in .32s cubic-bezier(.22,1,.36,1);
+}
+.slide.on{display:flex}
+@keyframes in{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+.kicker{font:700 12px var(--mono);letter-spacing:.18em;text-transform:uppercase;
+  color:var(--brand);margin-bottom:10px}
+h1{font-size:clamp(30px,4.6vw,60px);line-height:1.04;letter-spacing:-.03em;margin:0 0 14px}
+h2{font-size:clamp(24px,3.1vw,40px);line-height:1.1;letter-spacing:-.025em;margin:0 0 16px}
+.lede{font-size:clamp(15px,1.55vw,21px);color:var(--soft);line-height:1.55;max-width:66ch;margin:0 0 22px}
+p{line-height:1.6}
+.small{font-size:13.5px;color:var(--faint)}
+em{color:var(--bright);font-style:normal;font-weight:600}
+.body{flex:1;min-height:0;overflow:auto}
+
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:900px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px}
+.card h3{margin:0 0 7px;font-size:15.5px;letter-spacing:-.01em}
+.card p{margin:0;font-size:13.5px;color:var(--soft);line-height:1.55}
+.card.accent{border-color:rgba(129,140,248,.42);background:linear-gradient(160deg,rgba(129,140,248,.11),var(--panel))}
+.card.warn{border-color:rgba(251,191,36,.38);background:linear-gradient(160deg,rgba(251,191,36,.09),var(--panel))}
+.card.good{border-color:rgba(52,211,153,.36);background:linear-gradient(160deg,rgba(52,211,153,.09),var(--panel))}
+
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 18px}
+.stat .v{font-size:clamp(26px,3.3vw,42px);font-weight:800;letter-spacing:-.035em;line-height:1}
+.stat .k{font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-top:7px}
+.stat .n{font-size:12px;color:var(--soft);margin-top:5px;line-height:1.45}
+.v.low{color:var(--low)} .v.crit{color:var(--crit)} .v.brand{color:var(--bright)} .v.cyan{color:var(--cyan)}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font:700 11px var(--mono);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--faint);padding:9px 12px;border-bottom:1px solid var(--border)}
+td{padding:9px 12px;border-bottom:1px solid #1e2542;color:var(--soft)}
+td strong{color:var(--ink)}
+tr:last-child td{border-bottom:none}
+code{font:12.5px var(--mono);background:var(--panel2);padding:2px 7px;border-radius:5px;color:var(--bright)}
+
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;
+  font:700 11px var(--mono);letter-spacing:.06em}
+.p-low{background:rgba(52,211,153,.15);color:var(--low)}
+.p-crit{background:rgba(248,113,113,.16);color:var(--crit)}
+.p-mid{background:rgba(251,191,36,.15);color:var(--mid)}
+
+ul.clean{list-style:none;padding:0;margin:0}
+ul.clean li{padding:8px 0 8px 26px;position:relative;color:var(--soft);font-size:14.5px;line-height:1.5}
+ul.clean li::before{content:"→";position:absolute;left:0;color:var(--brand);font-weight:700}
+ul.clean li b{color:var(--ink)}
+
+.nav{position:fixed;bottom:16px;right:20px;display:flex;align-items:center;gap:12px;
+  font:600 12px var(--mono);color:var(--faint);z-index:20}
+.nav button{background:var(--panel);border:1px solid var(--border);color:var(--soft);
+  width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px}
+.nav button:hover{border-color:var(--brand);color:var(--bright)}
+.progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--brand),var(--cyan));
+  transition:width .3s ease;z-index:20}
+.brandmark{position:fixed;bottom:16px;left:20px;font:600 12px var(--mono);color:var(--faint);z-index:20}
+.hint{position:fixed;bottom:52px;right:20px;font:11px var(--mono);color:#4d5678;z-index:20}
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="deck" id="deck">
+
+<!-- 1 ───────────────────────────────────────────────────────── TITLE -->
+<section class="slide on">
+  <div class="body" style="display:flex;flex-direction:column;justify-content:center">
+    <div class="kicker">SIH 2026 · PS SIH26104 · AICTE · Blockchain &amp; Cybersecurity</div>
+    <h1>Three seconds of a CFO's voice<br>is now enough to move ₹42 lakh.</h1>
+    <p class="lede">VoiceGuard scores every call for synthetic speech <em>while it is still
+       happening</em>, explains why in plain language, and blocks the transaction before
+       the money leaves.</p>
+    <div class="grid g4" style="margin-top:14px">
+      <div class="stat"><div class="v cyan">0.62s</div><div class="k">end-to-end</div>
+        <div class="n">measured, against a 5 s requirement</div></div>
+      <div class="stat"><div class="v low">15</div><div class="k">genuine call</div>
+        <div class="n">same speaker, real voice</div></div>
+      <div class="stat"><div class="v crit">79</div><div class="k">cloned call</div>
+        <div class="n">same speaker, cloned</div></div>
+      <div class="stat"><div class="v brand">₹0.05</div><div class="k">per call</div>
+        <div class="n">CPU only, no GPU anywhere</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 2 ─────────────────────────────────────────────────────── PROBLEM -->
+<section class="slide">
+  <div class="kicker">The problem</div>
+  <h2>Every existing check verifies the <em>number</em>. None verify the <em>voice</em>.</h2>
+  <div class="body">
+    <div class="grid g3">
+      <div class="card"><h3>Caller ID</h3><p>Spoofable, and routinely spoofed. STIR/SHAKEN
+        attests the originating line — not the human speaking on it.</p></div>
+      <div class="card"><h3>"It sounds like him"</h3><p>Modern neural TTS clones timbre from
+        seconds of scraped audio. Under time pressure, human ears are not a control.</p></div>
+      <div class="card"><h3>Call-back policy</h3><p>Works — and is skipped exactly when it
+        matters, because the attack is engineered to feel too urgent for it.</p></div>
+    </div>
+
+    <div class="card warn" style="margin-top:18px">
+      <h3>The asymmetry that makes this worse every month</h3>
+      <p>The attacker needs a webinar recording and a free TTS account. The defender loses
+      the full transfer. Any control that raises the attacker's cost above "trivial"
+      changes the economics — and right now there is no such control on the voice itself.</p>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card"><h3>Who is hit</h3>
+        <ul class="clean" style="margin-top:6px">
+          <li><b>Bank / NBFC desks</b> approving telephonic transfers</li>
+          <li><b>Finance and HR staff</b> taking "CEO" calls</li>
+          <li><b>Senior citizens</b> receiving a familiar voice in distress</li>
+        </ul></div>
+      <div class="card"><h3>What the PS demands</h3>
+        <ul class="clean" style="margin-top:6px">
+          <li>Detection <b>during live calls</b>, not after</li>
+          <li>An <b>actionable risk score</b> before the transfer</li>
+          <li><b>Privacy-preserving</b> and multilingual for India</li>
+        </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 ─────────────────────────────────────────────────────── SOLUTION -->
+<section class="slide">
+  <div class="kicker">What we built</div>
+  <h2>Three ways in. One engine. One decision at the end.</h2>
+  <p class="lede">An uploaded recording and a live call run through the <em>same</em> chunker,
+     the same windows and the same model — so the demo behaves exactly like production.</p>
+  <div class="body">
+    <div class="grid g3">
+      <div class="card accent"><h3>📼 Upload a recording</h3>
+        <p>Drag a call into the browser. Verdict, evidence and timeline in about a second per
+        minute of audio. The front door — no permissions, works offline.</p></div>
+      <div class="card accent"><h3>🎙️ Live call</h3>
+        <p>Browser mic, WebRTC bridge or SIP tap over a WebSocket. A new score every 0.5 s.
+        This is the part the problem statement actually requires.</p></div>
+      <div class="card accent"><h3>🏦 Approval gate</h3>
+        <p>Core banking calls one endpoint before releasing funds and gets
+        <code>allow</code> / <code>step_up</code> / <code>block</code> with its reasons.</p></div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h3>Why the third one is the whole point</h3>
+      <p>A number on a dashboard changes nothing. What changes outcomes is a transaction
+      that does not complete. Our demo ends in a blocked ₹42 lakh transfer — not in a gauge.</p>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card"><h3>Also shipped</h3><ul class="clean" style="margin-top:6px">
+        <li>React ops dashboard — the fleet view for a fraud desk</li>
+        <li>Python + JavaScript SDKs, zero-dependency JS</li>
+        <li>Docker Compose stack, CI on three Python versions</li>
+        <li>156 tests, all passing</li></ul></div>
+      <div class="card"><h3>Runs on a clean checkout</h3><ul class="clean" style="margin-top:6px">
+        <li>No dataset download needed to demo</li>
+        <li>No GPU, no npm required for the console</li>
+        <li>Missing model? It degrades to a physics-based detector and <b>says so</b></li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 ────────────────────────────────────────────────── ARCHITECTURE -->
+<section class="slide">
+  <div class="kicker">Architecture</div>
+  <h2>Four layers, and a rule about what silence means.</h2>
+  <div class="body">
+    <svg viewBox="0 0 1000 300" style="width:100%;max-height:38vh" role="img"
+         aria-label="Four detection layers feeding a calibrated fusion and a risk decision">
+      <defs>
+        <linearGradient id="lg" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#818cf8"/><stop offset="100%" stop-color="#22d3ee"/>
+        </linearGradient>
+      </defs>
+      <rect x="8" y="120" width="122" height="62" rx="11" fill="#1c2340" stroke="#2a3355"/>
+      <text x="69" y="146" text-anchor="middle" fill="#eef1fa" font-size="13" font-weight="700" font-family="Inter,sans-serif">Call audio</text>
+      <text x="69" y="164" text-anchor="middle" fill="#6f7b9e" font-size="11" font-family="Inter,sans-serif">1 s / 0.5 s hop</text>
+      <path d="M132 151 H176" stroke="#3b456b" stroke-width="2" marker-end="url(#a)"/>
+      <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0 0 L8 4 L0 8 z" fill="#3b456b"/></marker></defs>
+
+      <g font-family="Inter,sans-serif">
+        <rect x="180" y="10" width="286" height="62" rx="11" fill="#151b30" stroke="#34406b"/>
+        <text x="196" y="34" fill="#a5b4fc" font-size="12.5" font-weight="700">L1 · Acoustic &amp; spectral</text>
+        <text x="196" y="54" fill="#a3aecb" font-size="11.5">band-limit cliff · phase coherence · digital silence</text>
+
+        <rect x="180" y="82" width="286" height="62" rx="11" fill="#151b30" stroke="#34406b"/>
+        <text x="196" y="106" fill="#a5b4fc" font-size="12.5" font-weight="700">L2 · Prosody &amp; micro-variation</text>
+        <text x="196" y="126" fill="#a3aecb" font-size="11.5">cycle jitter · shimmer · pause structure</text>
+
+        <rect x="180" y="154" width="286" height="62" rx="11" fill="#151b30" stroke="#34406b"/>
+        <text x="196" y="178" fill="#a5b4fc" font-size="12.5" font-weight="700">L3 · Cross-session speaker</text>
+        <text x="196" y="198" fill="#a3aecb" font-size="11.5">enrolment distance · within-call drift</text>
+
+        <rect x="180" y="226" width="286" height="62" rx="11" fill="#151b30" stroke="#34406b"/>
+        <text x="196" y="250" fill="#a5b4fc" font-size="12.5" font-weight="700">L4 · Call context</text>
+        <text x="196" y="270" fill="#a3aecb" font-size="11.5">attestation · amount · hour · pressure language</text>
+      </g>
+
+      <path d="M470 41 C520 41 520 151 556 151" stroke="#3b456b" stroke-width="1.6" fill="none"/>
+      <path d="M470 113 C520 113 520 151 556 151" stroke="#3b456b" stroke-width="1.6" fill="none"/>
+      <path d="M470 185 C520 185 520 151 556 151" stroke="#3b456b" stroke-width="1.6" fill="none"/>
+      <path d="M470 257 C520 257 520 151 556 151" stroke="#3b456b" stroke-width="1.6" fill="none"/>
+
+      <rect x="558" y="112" width="176" height="78" rx="12" fill="#1c2340" stroke="url(#lg)" stroke-width="1.8"/>
+      <text x="646" y="139" text-anchor="middle" fill="#eef1fa" font-size="13" font-weight="700" font-family="Inter,sans-serif">Confidence-weighted</text>
+      <text x="646" y="157" text-anchor="middle" fill="#eef1fa" font-size="13" font-weight="700" font-family="Inter,sans-serif">logit fusion</text>
+      <text x="646" y="176" text-anchor="middle" fill="#6f7b9e" font-size="11" font-family="Inter,sans-serif">+ Platt calibration</text>
+
+      <path d="M736 151 H784" stroke="#3b456b" stroke-width="2" marker-end="url(#a)"/>
+      <rect x="786" y="104" width="206" height="94" rx="12" fill="#151b30" stroke="#2a3355"/>
+      <text x="889" y="132" text-anchor="middle" fill="#eef1fa" font-size="13.5" font-weight="700" font-family="Inter,sans-serif">Risk 0–100 + factors</text>
+      <text x="889" y="153" text-anchor="middle" fill="#a3aecb" font-size="11.5" font-family="Inter,sans-serif">+ recommended action</text>
+      <text x="889" y="176" text-anchor="middle" fill="#f87171" font-size="12" font-weight="700" font-family="Inter,sans-serif">→ allow / step-up / block</text>
+    </svg>
+
+    <div class="card good" style="margin-top:14px">
+      <h3>The rule that makes it work in the field</h3>
+      <p>A layer that <em>cannot</em> run — no enrolment, no voiced speech, no metadata —
+      reports <code>confidence = 0</code> and is removed from <b>both sides</b> of the fusion.
+      It never votes "genuine" by default. The standard ensemble treats a missing sub-model
+      as 0.5, which drags every verdict toward the prior — and the layers most likely to be
+      unavailable are exactly the ones whose absence coincides with an attack. That failure
+      is silent, and it is in the attacker's favour.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 5 ────────────────────────────────────────────────────────── DEMO -->
+<section class="slide">
+  <div class="kicker">Live demo</div>
+  <h2>Same synthetic speaker. Their real voice, then a clone of it.</h2>
+  <div class="body">
+    <div class="grid g2">
+      <div class="card good">
+        <div class="pill p-low">LOW · LIKELY GENUINE</div>
+        <div style="font-size:64px;font-weight:800;letter-spacing:-.04em;color:var(--low);margin:12px 0 4px">15<span style="font-size:22px;color:var(--faint)">/100</span></div>
+        <p style="margin-top:10px"><b>Evidence:</b> broadband energy to 8 kHz · natural pitch
+        micro-variation · room tone present between words</p>
+        <p style="margin-top:8px;color:var(--faint)"><b>Action:</b> proceed normally</p>
+      </div>
+      <div class="card" style="border-color:rgba(248,113,113,.4);background:linear-gradient(160deg,rgba(248,113,113,.1),var(--panel))">
+        <div class="pill p-crit">CRITICAL · LIKELY SYNTHETIC</div>
+        <div style="font-size:64px;font-weight:800;letter-spacing:-.04em;color:var(--crit);margin:12px 0 4px">79<span style="font-size:22px;color:var(--faint)">/100</span></div>
+        <p style="margin-top:10px"><b>Evidence:</b> digitally clean silence (0.89) ·
+        high-frequency cliff at 7.2 kHz · 44 % of samples numerically zero</p>
+        <p style="margin-top:8px;color:var(--crit)"><b>Action:</b> block and escalate to the fraud desk</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>What the audience sees on stage</h3>
+      <ul class="clean" style="margin-top:6px">
+        <li>The gauge crosses into <b>CRITICAL within two windows</b> — about one second of speech</li>
+        <li>Evidence in <b>plain language</b>, not feature names — an agent can say it aloud to the customer</li>
+        <li>The <b>₹42 lakh transfer is refused</b> by the core-banking endpoint, with its reason chain</li>
+        <li>Drop the threshold on the wire-transfer profile, replay: it escalates earlier.
+            <b>The model output does not move</b> — only the policy does</li>
+      </ul>
+    </div>
+    <p class="small" style="margin-top:12px">Demo audio is generated by
+      <code>voiceguard.simulation</code> and labelled as simulated everywhere it appears.</p>
+  </div>
+</section>
+
+<!-- 6 ─────────────────────────────────────────────────── DIFFERENCE -->
+<section class="slide">
+  <div class="kicker">Why this is different</div>
+  <h2>Deepfake detection exists. This combination does not.</h2>
+  <div class="body">
+    <table>
+      <thead><tr><th>What is usually shipped</th><th>What VoiceGuard does</th></tr></thead>
+      <tbody>
+        <tr><td>Upload a file, get a verdict afterwards</td>
+            <td><strong>Scores during the call</strong> — 0.5 s hop, 0.62 s end to end</td></tr>
+        <tr><td>Outputs "87 % fake" and stops</td>
+            <td><strong>Returns a decision</strong> — allow / step-up / block, with reasons</td></tr>
+        <tr><td>A missing check silently votes "genuine"</td>
+            <td><strong>Abstention is visible</strong> and excluded from the fusion</td></tr>
+        <tr><td>Needs an enrolled voiceprint</td>
+            <td><strong>Works with no enrolment</strong>; layer 3 strengthens it when present</td></tr>
+        <tr><td>Context blended into one opaque score</td>
+            <td><strong>Context moves thresholds, never the score</strong> — auditable</td></tr>
+        <tr><td>Opaque neural verdict</td>
+            <td><strong>Ranked factors in plain language</strong>, plus counter-evidence</td></tr>
+        <tr><td>GPU-served transformer</td>
+            <td><strong>CPU only</strong> — ~₹0.05/call, runs on a handset</td></tr>
+        <tr><td>Headline accuracy, quiet failure modes</td>
+            <td><strong>Model card states the numbers are too good</strong>, and CI fails on corpus leakage</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 7 ─────────────────────────────────────────────────────── RESULTS -->
+<section class="slide">
+  <div class="kicker">Measured results</div>
+  <h2>Every number here is produced by a command in the repository.</h2>
+  <div class="body">
+    <div class="grid g4">
+      <div class="stat"><div class="v cyan">124<span style="font-size:16px">ms</span></div>
+        <div class="k">p95 per window</div><div class="n">25 % of the 500 ms budget · 4× headroom</div></div>
+      <div class="stat"><div class="v brand">1.67<span style="font-size:16px">%</span></div>
+        <div class="k">EER, utterance</div><div class="n">simulated corpus — see caveat</div></div>
+      <div class="stat"><div class="v low">1.7<span style="font-size:16px">%</span></div>
+        <div class="k">false positives</div><div class="n">on genuine audio at threshold 0.50</div></div>
+      <div class="stat"><div class="v">156</div><div class="k">tests passing</div>
+        <div class="n">DSP, models, API, ML, ~30 s</div></div>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card"><h3>Unseen-vocoder evaluation</h3>
+        <p style="margin-bottom:8px">Retrain with one synthesis family removed entirely, then
+        test <em>only</em> on that family — the number that says anything about the next TTS release.</p>
+        <table style="font-size:13px"><tbody>
+          <tr><td>Griffin-Lim held out</td><td><strong>0.00 % EER</strong> · 100 % detected</td></tr>
+          <tr><td>Neural vocoder held out</td><td><strong>0.00 % EER</strong> · 95 % detected</td></tr>
+          <tr><td>Hybrid held out</td><td><strong>0.00 % EER</strong> · 100 % detected</td></tr>
+        </tbody></table></div>
+      <div class="card"><h3>Reproduce it</h3>
+        <ul class="clean" style="margin-top:4px;font-size:13px">
+          <li><code>make demo-data</code> — build the corpus</li>
+          <li><code>make train</code> — train + evaluate</li>
+          <li><code>scripts/bench_latency.py</code> — latency</li>
+          <li><code>scripts/edge_infer.py</code> — on-device path</li>
+          <li><code>make test</code> — the full suite</li>
+        </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 ─────────────────────────────────────────────────────── HONESTY -->
+<section class="slide">
+  <div class="kicker">The slide most decks leave out</div>
+  <h2>Our accuracy numbers are too good, and here is why.</h2>
+  <div class="body">
+    <div class="card warn">
+      <h3>The shipped weights were trained on audio this repository generated</h3>
+      <p>An EER of 0 % on a real corpus would be a red flag, not an achievement. Published
+      state of the art on ASVspoof 2021 DF sits at 2–7 %. Our numbers describe <b>the
+      pipeline working</b> — they are not a claim about ElevenLabs, RVC or XTTS, which we
+      have not tested against. <code>ml/train.py</code> reads ASVspoof and In-the-Wild
+      layouts unchanged; retraining is one command, and it is the first item on the roadmap.</p>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card"><h3>A real bug this caught</h3>
+        <p>The first training run scored <b>100 % accuracy, 0 % EER</b>. The cause: bona fide
+        audio carried a DC offset of 4.4e-3 (an all-positive glottal pulse train) against
+        4e-5 for synthetic (the STFT round-trip removes DC). The classifier was reading our
+        generator, not the speech. Adding a shared capture chain dropped that feature's
+        importance from <b>0.55 to 0.038</b>.</p></div>
+      <div class="card"><h3>So we made it a build gate</h3>
+        <p><code>detect_leakage</code> runs before every training run and <b>fails CI</b> if
+        any single feature reaches AUC ≥ 0.90 alone. A perfect score from a corpus artifact
+        is worse than a mediocre score from real signal: it is confidently wrong and
+        invisible in the headline number.</p></div>
+    </div>
+
+    <div class="card" style="margin-top:16px"><h3>Seven failure modes we publish</h3>
+      <p>High-quality commercial clones over a clean line · heavy codecs on genuine callers ·
+      utterances under 3 s · non-Indian accents, children, atypical voices ·
+      <b>adversarial audio (unmitigated)</b> · replay of a genuine recording (out of scope) ·
+      a classical speaker embedding weaker than ECAPA. All in <code>docs/MODEL_CARD.md</code>.</p></div>
+  </div>
+</section>
+
+<!-- 9 ────────────────────────────────────────────── SUSTAINABILITY -->
+<section class="slide">
+  <div class="kicker">Feasibility &amp; sustainability</div>
+  <h2>One architectural choice pays for everything else.</h2>
+  <p class="lede">No GPU and no transformer in the inference path — which is what makes the
+     cost, the edge deployment and the energy footprint all work at once.</p>
+  <div class="body">
+    <div class="grid g3">
+      <div class="stat"><div class="v brand">₹0.05</div><div class="k">compute per call</div>
+        <div class="n">4 calls/core measured → 32 per 8-vCPU VM at ₹30/hr, 3-min calls</div></div>
+      <div class="stat"><div class="v low">0.05 g</div><div class="k">CO₂e per call</div>
+        <div class="n">≈ one or two web-page loads</div></div>
+      <div class="stat"><div class="v cyan">252 B</div><div class="k">edge uplink</div>
+        <div class="n">no audio, no features — just the verdict</div></div>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card"><h3>Scalability</h3><ul class="clean" style="margin-top:4px">
+        <li>Stateless inference; only the session map is in memory</li>
+        <li>Scale out with <code>--scale backend=N</code> + sticky routing on session id</li>
+        <li>Capacity ceiling returns <b>503</b> rather than degrading silently</li>
+        <li>Redis-backed sessions on the roadmap removes stickiness entirely</li></ul></div>
+      <div class="card"><h3>Privacy, enforced not promised</h3><ul class="clean" style="margin-top:4px">
+        <li>Default <b>features-only</b> — no audio touches disk</li>
+        <li>TTL sweeper <b>hard-deletes</b>; no soft-delete flag</li>
+        <li>Phone numbers salted-hashed; transcript digits redacted</li>
+        <li><code>DELETE /v1/sessions/{id}</code> — right to erasure</li>
+        <li>Edge path proven by a runnable script, not asserted</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 ─────────────────────────────────────────────────────── CLOSE -->
+<section class="slide">
+  <div class="kicker">What happens next</div>
+  <h2>The engineering is done. The validation is the work.</h2>
+  <div class="body">
+    <div class="grid g2">
+      <div class="card accent"><h3>Before 20 September</h3><ul class="clean" style="margin-top:4px">
+        <li>Retrain on <b>ASVspoof 2019 LA + In-the-Wild</b>; publish the real EER beside the simulated one</li>
+        <li>Record 40–60 <b>Indian-accent</b> samples across four languages, clone them with two public TTS tools, measure</li>
+        <li>Rehearse the six-minute demo to time</li></ul></div>
+      <div class="card"><h3>0–9 months</h3><ul class="clean" style="margin-top:4px">
+        <li><b>Shadow-mode pilot</b> — score every call, block nothing, measure the real false-positive rate</li>
+        <li>ECAPA/WavLM embedding; <b>fairness audit</b> by accent, age and gender</li>
+        <li>Redis sessions, SIP/WebRTC bridge, adversarial robustness</li></ul></div>
+    </div>
+
+    <div class="card good" style="margin-top:18px">
+      <h3>The argument in one sentence</h3>
+      <p style="font-size:16px;color:var(--ink)">A detector that is honest about being 85 %
+      right is deployable; one that claims 99 % and hides its failure modes gets switched
+      off in its first month — so we built the abstention, the calibration, the leakage gate
+      and the model card <em>first</em>, and the accuracy will follow from real data.</p>
+    </div>
+
+    <div class="grid g4" style="margin-top:16px">
+      <div class="stat"><div class="v low">✓</div><div class="k">runs today</div><div class="n">clean checkout, no dataset</div></div>
+      <div class="stat"><div class="v low">✓</div><div class="k">real integration</div><div class="n">transaction actually blocked</div></div>
+      <div class="stat"><div class="v low">✓</div><div class="k">honest metrics</div><div class="n">leakage gate in CI</div></div>
+      <div class="stat"><div class="v low">✓</div><div class="k">deployable</div><div class="n">Docker, CPU-only, MIT</div></div>
+    </div>
+    <p class="small" style="margin-top:16px">Try it now: <code>/console</code> ·
+      Ops view: the React dashboard · API: <code>/docs</code> ·
+      Limits: <code>docs/MODEL_CARD.md</code></p>
+  </div>
+</section>
+
+</div>
+
+<div class="brandmark">🛡️ VoiceGuard · SIH26104</div>
+<div class="hint">← → or space · F for fullscreen</div>
+<div class="nav">
+  <button id="prev" aria-label="Previous slide">←</button>
+  <span id="counter">1 / 10</span>
+  <button id="next" aria-label="Next slide">→</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  let index = 0;
+
+  function show(next) {
+    index = Math.max(0, Math.min(slides.length - 1, next));
+    slides.forEach((slide, i) => slide.classList.toggle('on', i === index));
+    document.getElementById('counter').textContent = `${index + 1} / ${slides.length}`;
+    document.getElementById('progress').style.width =
+      `${((index + 1) / slides.length) * 100}%`;
+    // Keep the slide number in the URL so a presenter can reload without losing their place.
+    history.replaceState(null, '', `#${index + 1}`);
+  }
+
+  document.getElementById('next').addEventListener('click', () => show(index + 1));
+  document.getElementById('prev').addEventListener('click', () => show(index - 1));
+
+  document.addEventListener('keydown', (event) => {
+    if (['ArrowRight', ' ', 'PageDown', 'n'].includes(event.key)) { event.preventDefault(); show(index + 1); }
+    else if (['ArrowLeft', 'PageUp', 'p'].includes(event.key)) { event.preventDefault(); show(index - 1); }
+    else if (event.key === 'Home') show(0);
+    else if (event.key === 'End') show(slides.length - 1);
+    else if (event.key === 'f' || event.key === 'F') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen?.();
+    }
+  });
+
+  // Touch swipe, so the deck works from a phone during a poster session.
+  let touchStart = null;
+  document.addEventListener('touchstart', (e) => { touchStart = e.changedTouches[0].screenX; },
+                            { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (touchStart === null) return;
+    const delta = e.changedTouches[0].screenX - touchStart;
+    if (Math.abs(delta) > 55) show(index + (delta < 0 ? 1 : -1));
+    touchStart = null;
+  }, { passive: true });
+
+  const fromHash = parseInt(location.hash.slice(1), 10);
+  show(Number.isFinite(fromHash) && fromHash > 0 ? fromHash - 1 : 0);
+})();
+</script>
+</body>
+</html>

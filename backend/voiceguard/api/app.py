@@ -130,6 +130,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         return FileResponse(path)
 
+    @app.get("/pitch", include_in_schema=False)
+    def pitch():
+        """The judging deck, served by the system it describes.
+
+        Deliberate: every number on those slides is produced by a command in this
+        repository, and serving the deck from the running service means a judge can click
+        straight from a claim to the thing that makes it true.
+        """
+        path = os.path.join(STATIC_DIR, "pitch.html")
+        if not os.path.exists(path):
+            return JSONResponse({"error": "pitch deck not found"}, status_code=404)
+        return FileResponse(path)
+
     @app.exception_handler(Exception)
     async def unhandled(request: Request, exc: Exception):
         # Never leak a stack trace to a caller; the log has the detail.

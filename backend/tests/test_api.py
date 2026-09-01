@@ -482,3 +482,13 @@ def test_demo_pair_separates_genuine_from_cloned(client):
     genuine = score("kind=bonafide&seconds=7&speaker=7&language=hi-IN", "g.wav")
     cloned = score("kind=cloned&method=neural&seconds=7&speaker=7&language=hi-IN", "c.wav")
     assert cloned > genuine
+
+
+def test_pitch_deck_is_served(client):
+    response = client.get("/pitch")
+    assert response.status_code == 200
+    body = response.text
+    assert body.count('<section class="slide') == 10
+    # The deck must keep the honesty slide — the claim and its caveat travel together.
+    assert "too good" in body
+    assert "adversarial audio" in body

@@ -5,86 +5,146 @@
 VoiceGuard is an end-to-end, privacy-preserving framework that listens to a live call,
 analyses the speech **while the conversation is still in progress**, and emits a
 continuously-updating **impersonation risk score (0–100)** with human-readable reasons —
-so an agent, employee, or family member can act *before* money moves.
+then blocks the transaction before the money leaves.
 
 ```
   caller audio ──► chunker ──► ┌──────────────────────────────┐
-   (WebRTC/SIP/    (1.0 s win,  │  L1  spectral / vocoder      │
-    file/mic)       0.5 s hop)  │  L2  prosody & micro-variation│──► fusion ──► risk 0-100
+   (upload /       (1.0 s win,  │  L1  spectral / vocoder      │
+    mic / SIP)      0.5 s hop)  │  L2  prosody & micro-variation│──► fusion ──► risk 0-100
                                 │  L3  cross-session speaker   │      + calibration   │
-                                │  L4  call-context signals    │                      │
-                                └──────────────────────────────┘                      │
-                                                                                      ▼
-                                            WebSocket ──► dashboard ──► alert / block / step-up auth
+                                │  L4  call context            │                      │
+                                └──────────────────────────────┘                      ▼
+                                                          allow · step-up · BLOCK the transfer
 ```
+
+| Measured | Result |
+|---|---|
+| End-to-end latency | **0.62 s** (NFR: < 5 s) |
+| Same speaker — real voice vs a clone of it | **15/100 LOW** vs **79/100 CRITICAL** |
+| Compute cost per call | **≈ ₹0.05**, CPU only |
+| Tests | **156 passing** |
 
 ---
 
-## 1. Why this exists
-
-A 3-second sample of a CFO's voice from a webinar is enough for modern neural TTS to
-produce a convincing clone. Caller ID, "does it sound like him?", and call-back policies
-fail under time pressure. VoiceGuard adds a **machine second opinion** to every call.
-
-## 2. What is in this repository
-
-| Path | What it is |
-|---|---|
-| `backend/voiceguard/audio` | Decoding, resampling, energy+spectral VAD, streaming chunker |
-| `backend/voiceguard/features` | STFT/MFCC/mel, spectral statistics, phase & modulation features, F0/jitter/shimmer prosody, vocoder-artifact probes, speaker embedding |
-| `backend/voiceguard/models` | Acoustic detector, prosodic detector, speaker-consistency detector, model registry with graceful fallbacks |
-| `backend/voiceguard/scoring` | Score fusion, calibration, risk engine with context enrichment, explainability |
-| `backend/voiceguard/alerts` | Threshold engine + pluggable channels (WebSocket, webhook, email, SMS) |
-| `backend/voiceguard/privacy` | Retention policy, feature-only logging, anonymisation |
-| `backend/voiceguard/api` | FastAPI app: REST + WebSocket streaming + admin + mock bank integration |
-| `ml/` | Corpus builder, training, evaluation (Accuracy / AUC / EER / DET) |
-| `frontend/` | React + Vite real-time dashboard (live gauge, timeline, alerts, admin) |
-| `backend/voiceguard/api/static` | Zero-build HTML console — full demo with **no npm required** |
-| `sdk/` | Python and JavaScript client SDKs |
-| `deploy/` | Dockerfiles + docker-compose for one-command bring-up |
-| `docs/` | Architecture, API reference, privacy note, model card, demo script |
-
-## 3. Quick start (60 seconds, no Node required)
+## 1. Quick start (60 seconds, no GPU, no dataset, no npm)
 
 ```bash
 git clone https://github.com/sachinkmr-hub/voice-clone && cd voice-clone
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements.txt
-make demo-data          # builds a small bona-fide vs synthetic corpus
-make train              # fits the bootstrap detector, prints Accuracy/AUC/EER
-make run                # http://127.0.0.1:8000/console
+make run
 ```
 
-Open <http://127.0.0.1:8000/console>, press **Start streaming**, and feed it either the
-microphone or one of the generated `data/corpus/*.wav` files. The gauge updates every
-~0.5 s with the current risk, the contributing factors, and the recommended action.
-
-With Docker:
+Open **<http://127.0.0.1:8000/console>** and click *"Cloned CFO demanding an urgent wire"*.
+No files needed — the server generates labelled demo audio on demand.
 
 ```bash
-docker compose -f deploy/docker-compose.yml up --build
+make demo-data     # build a bona-fide vs synthetic corpus (~20 s)
+make train         # train + evaluate; prints Accuracy / AUC / EER
+make test          # 156 tests, ~30 s
+docker compose -f deploy/docker-compose.yml up --build   # whole stack
 ```
 
-## 4. Design principles
+Also served by the running app: **`/pitch`** (the judging deck) · **`/docs`** (OpenAPI).
 
-1. **Near-real-time by construction.** Every layer is streaming-friendly: features are
-   computed on 1 s windows with 0.5 s hop, and the risk score is an exponentially-weighted
-   fusion over the call so far. No layer needs the call to end.
-2. **Never a naked number.** Every score ships with ranked contributing factors
-   (`"high-frequency energy cliff at 7.8 kHz"`, `"pitch micro-variation 4.1σ below human range"`)
-   and a recommended action. Judges, auditors and end-users all need the *why*.
-3. **Degrade, never crash.** Torch missing? Trained model missing? The registry falls back
-   to the calibrated DSP heuristic detector and marks its own confidence lower. The demo
-   always runs.
-4. **Privacy first.** Raw audio is never written to disk unless retention is explicitly
-   enabled; the default audit trail stores feature vectors and hashes only.
-5. **Honest about limits.** See `docs/MODEL_CARD.md` — we state exactly what the shipped
-   model was trained on and where it will fail.
+## 2. Three ways in, one engine
 
-## 5. Status of each PRD requirement
+A post-hoc "upload a file" analyser cannot satisfy this problem statement — it asks for
+detection *during live calls*, *before sensitive actions are taken*. So all three paths run
+through the **same** chunker, windows and model:
 
-See `docs/PRD_TRACEABILITY.md` for the full FR/NFR → code mapping.
+| Path | Endpoint | Who it is for |
+|---|---|---|
+| **Upload a recording** | `POST /v1/analyze/file` | The front door. Zero permissions, works offline. |
+| **Live call** | `WS /v1/stream` | Browser mic, WebRTC bridge, SIP tap. New score every 0.5 s. |
+| **Approval gate** | `POST /v1/integrations/bank/approval` | Core banking, before releasing funds. |
 
-## 6. Licence
+## 3. What is in this repository
 
-MIT — see `LICENSE`.
+| Path | What it is |
+|---|---|
+| `backend/voiceguard/audio` | Decoding, resampling, energy+spectral VAD, streaming chunker |
+| `backend/voiceguard/features` | 123 features: STFT/MFCC, spectral statistics, phase & modulation, F0/jitter/shimmer, vocoder-artifact probes, speaker embedding |
+| `backend/voiceguard/models` | Four detection layers, rule calibration, registry with graceful degradation |
+| `backend/voiceguard/scoring` | Fusion, calibration, risk policy, explanations |
+| `backend/voiceguard/alerts` | Threshold engine + channels (WebSocket, webhook, email, SMS) |
+| `backend/voiceguard/privacy` | Retention enforcement, anonymisation, transcript redaction |
+| `backend/voiceguard/api` | FastAPI: REST + WebSocket + admin + mock bank integration |
+| `backend/voiceguard/api/static` | **Zero-build web console** and the pitch deck — no npm required |
+| `frontend/` | React + Vite operations dashboard (the fleet view) |
+| `ml/` | Corpus builder, training, evaluation, leakage detection |
+| `sdk/` | Python and JavaScript client SDKs |
+| `deploy/` | Dockerfiles, Compose, nginx |
+| `scripts/` | Latency benchmark, demo call driver, on-device inference |
+
+## 4. Documentation
+
+| Document | What it answers |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How the four layers, fusion and streaming actually work |
+| [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) | **Read this before quoting any number.** What the model was trained on, why the results are too good, seven known failure modes |
+| [`docs/PRD_TRACEABILITY.md`](docs/PRD_TRACEABILITY.md) | Every FR/NFR mapped to the code that satisfies it |
+| [`docs/FEASIBILITY.md`](docs/FEASIBILITY.md) | SMART breakdown, measured metrics, timeline, risk register |
+| [`docs/MARKET.md`](docs/MARKET.md) | Does this exist already? What is missing, and where we sit |
+| [`docs/SUSTAINABILITY.md`](docs/SUSTAINABILITY.md) | Unit economics and carbon, derived from one measured number |
+| [`docs/IP.md`](docs/IP.md) | What is genuinely ours, what is prior art, what we gave away |
+| [`docs/PRIVACY.md`](docs/PRIVACY.md) | Retention modes, anonymisation, the edge path |
+| [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) | The six-minute demo, beat by beat |
+
+## 5. Design principles
+
+1. **Near-real-time by construction.** Every layer is streaming-friendly. No layer needs
+   the call to end.
+2. **Never a naked number.** Every score ships with ranked evidence in plain language, the
+   counter-evidence, and its caveats.
+3. **Abstention beats guessing.** A layer that cannot run reports `confidence = 0` and is
+   removed from *both sides* of the fusion — it never votes "genuine" by default. The
+   interface shows "abstained", which is a different answer from "it was fine".
+4. **Policy is separable from the model.** Call context moves alerting *thresholds*, never
+   the probability, so the same audio always scores the same and the audit trail holds up.
+5. **Degrade, never crash.** Missing model, corrupt artifact, no torch — each downgrades one
+   layer, reports why through `/v1/health`, and keeps serving.
+6. **Privacy first.** Features-only by default; the TTL sweeper hard-deletes; the on-device
+   path is a runnable script, not a claim.
+7. **Honest about limits.** The model card says the shipped numbers are too good to be real,
+   and CI fails the build on corpus leakage.
+
+## 6. Results
+
+Bootstrap corpus, **speaker-disjoint** splits, three vocoder families:
+
+| Evaluation | Accuracy | AUC | EER |
+|---|---|---|---|
+| Classifier, window level | 0.974 | 0.998 | 2.65 % |
+| Classifier, utterance level | 0.983 | 0.999 | 1.67 % |
+| Full four-layer stack | 1.000 | 1.000 | 0.00 % |
+| False positives on genuine audio | — | — | **1.7 %** @ 0.50 |
+
+Unseen-vocoder evaluation (each family held out entirely, then tested only on it): 0.00 %
+EER for all three, detection 95–100 %.
+
+Latency on one CPU core: **p95 124 ms** per window against a 500 ms budget — 4× headroom.
+
+> ⚠️ **These numbers are on simulated audio and are too good to be real.** They demonstrate
+> the pipeline, not accuracy against ElevenLabs or RVC. `ml/train.py` reads ASVspoof and
+> In-the-Wild layouts unchanged. See [`docs/MODEL_CARD.md`](docs/MODEL_CARD.md) §2.
+
+## 7. Where each judging criterion is answered
+
+| Criterion | Where |
+|---|---|
+| Relevance to the problem statement | [`docs/PRD_TRACEABILITY.md`](docs/PRD_TRACEABILITY.md) — every FR/NFR → code |
+| Does it exist in market/industry? | [`docs/MARKET.md`](docs/MARKET.md) §1–2 — yes, partly; here is the gap |
+| Feasibility (SMART) | [`docs/FEASIBILITY.md`](docs/FEASIBILITY.md) — each letter, with measured numbers |
+| Timeline | [`docs/FEASIBILITY.md`](docs/FEASIBILITY.md) §5 |
+| Usability | `/console` (3 clicks to a verdict) and the React dashboard |
+| Scalability | [`docs/SUSTAINABILITY.md`](docs/SUSTAINABILITY.md) §1.1, `deploy/docker-compose.yml` |
+| Economic sustainability | [`docs/SUSTAINABILITY.md`](docs/SUSTAINABILITY.md) §1 — ₹0.05/call, working shown |
+| Environmental sustainability | [`docs/SUSTAINABILITY.md`](docs/SUSTAINABILITY.md) §2 — 0.05 g CO₂e/call |
+| Intellectual property | [`docs/IP.md`](docs/IP.md) — one defensible method claim, prior art stated first |
+| Presentation | `/pitch` — 10 slides, served by the system it describes |
+
+## 8. Licence
+
+MIT — see [`LICENSE`](LICENSE). Chosen deliberately: a security control that banks and
+government departments can *audit* is more trustworthy than one they cannot.
