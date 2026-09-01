@@ -5,7 +5,7 @@ score is not driven by room tone, and (b) produce the pause statistics that laye
 (prosody) needs. It combines three cheap cues per 20 ms frame:
 
 * short-time energy relative to an adaptive noise floor,
-* spectral flatness (noise is flat, voiced speech is peaky),
+* spectral flatness (broadband noise sits near 0.56, voiced speech below 0.05),
 * zero-crossing rate (rejects DC/rumble, keeps fricatives).
 """
 
@@ -20,6 +20,9 @@ from voiceguard.config import SAMPLE_RATE
 
 EPS = 1e-12
 FRAME_MS = 20.0
+#: Below this, a 16-bit frame carries no recoverable signal. Deliberately far below a
+#: "normal" speaking level so that quiet callers on low-gain trunks are not discarded.
+ABSOLUTE_SILENCE_DB = -78.0
 
 
 @dataclass
@@ -113,7 +116,7 @@ def detect_speech(
     sample_rate: int = SAMPLE_RATE,
     *,
     energy_margin_db: float = 9.0,
-    flatness_threshold: float = 0.62,
+    flatness_threshold: float = 0.50,
     min_speech_ms: float = 60.0,
     min_pause_ms: float = 120.0,
 ) -> SpeechSegments:
@@ -151,9 +154,13 @@ def detect_speech(
     threshold = noise_floor + energy_margin_db
     dynamic = float(np.percentile(energy_db, 95)) - noise_floor
     if dynamic < 6.0:
-        # Essentially constant level: either pure silence or a steady tone. Require an
-        # absolute level before calling it speech.
-        mask = energy_db > max(threshold, -55.0)
+        # Essentially constant level. This is *not* the same as "silent": a window filled
+        # edge to edge with continuous speech also has no internal contrast, and the
+        # relative threshold above would then classify all of it as background. With no
+        # contrast to exploit, decide on absolute level alone (the 16-bit noise floor,
+        # not a "normal" speaking level — a quiet caller on a low-gain trunk is still a
+        # real call) and let spectral flatness reject steady room tone and hum.
+        mask = (energy_db > ABSOLUTE_SILENCE_DB) & (flatness < flatness_threshold)
     else:
         mask = (energy_db > threshold) & (flatness < flatness_threshold) & (zcr < 0.55)
 

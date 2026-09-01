@@ -27,6 +27,9 @@ from voiceguard.features.spectral import magnitude_spectrogram, mel_filterbank, 
 
 EPS = 1e-12
 EMBEDDING_DIM = 64
+#: Floor for the within-speaker spread used to normalise enrolment distances. Chosen an
+#: order of magnitude below the ~0.005 spread this embedding actually produces.
+MIN_ENROLMENT_SPREAD = 0.0008
 
 
 def available_backends() -> List[str]:
@@ -212,7 +215,11 @@ class EnrolmentStore:
             "enrolment_spread": spread,
             "samples": float(len(self._profiles.get(identity, []))),
             # How many "within-speaker spreads" away this call sits from the centroid.
-            "z_distance": float(distance / max(spread, 0.05)),
+            # The floor only guards against a degenerate (near-zero) spread from near-
+            # duplicate enrolment samples; it must stay well below a *typical* spread
+            # (~0.005 for this embedding), or it silently replaces the normalisation it
+            # is meant to protect and every speaker looks like a match.
+            "z_distance": float(distance / max(spread, MIN_ENROLMENT_SPREAD)),
         }
 
     def identities(self) -> List[str]:

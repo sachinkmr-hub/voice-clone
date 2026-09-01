@@ -241,7 +241,16 @@ def _istft(spec: np.ndarray, n_fft: int, hop: int, length: int) -> np.ndarray:
         start = i * hop
         out[start : start + n_fft] += frame
         norm[start : start + n_fft] += window**2
-    return (out / np.maximum(norm, 1e-8))[:length]
+
+    # At the very first and last samples only one window tail overlaps, so the norm tends
+    # to zero and dividing by it manufactures an enormous edge spike — which then eats the
+    # whole dynamic range when the result is peak-normalised. Suppress those samples
+    # instead of amplifying them.
+    floor = 1e-3 * float(norm.max()) if norm.size and norm.max() > 0 else 1.0
+    result = np.zeros_like(out)
+    usable = norm > floor
+    result[usable] = out[usable] / norm[usable]
+    return result[:length]
 
 
 def griffin_lim(

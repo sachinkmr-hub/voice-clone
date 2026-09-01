@@ -43,6 +43,9 @@ from voiceguard.features.spectral import (
 )
 
 EPS = 1e-12
+#: A 20 ms frame of genuine recorded background never sits this low; a real handset,
+#: room and codec always leave something. Below this line the silence was generated.
+DIGITAL_FLOOR_DB = -85.0
 
 
 # --------------------------------------------------------------------------------------
@@ -185,11 +188,24 @@ def silence_features(
     else:
         floor, floor_std, floor_range = float(segments.noise_floor_db), 0.0, 0.0
 
-    # A room-tone floor sits around -70..-45 dBFS with several dB of wobble. Anything
-    # below -85 dB with near-zero variance is a generated silence.
-    digital_silence = float(
+    # Two independent readings, because aggregate statistics alone fail on the case we
+    # most want to catch. A spliced call — genuine human intro, synthesised instructions —
+    # has *both* real room tone (~-58 dB) and generated silence (-120 dB) among its
+    # non-speech frames. Their combined standard deviation is then large, which a
+    # "low AND steady" formula reads as perfectly natural.
+    #
+    #   clean_fraction : share of non-speech frames that are implausibly quiet. Robust to
+    #                    mixtures, and it is the mixture that indicates a splice.
+    #   steady_low     : the whole background is uniformly, unnaturally low and flat —
+    #                    a fully-synthetic call rather than a spliced one.
+    if silence_db.size:
+        clean_fraction = float(np.mean(silence_db < DIGITAL_FLOOR_DB))
+    else:
+        clean_fraction = 0.0
+    steady_low = float(
         np.clip((-70.0 - floor) / 25.0, 0.0, 1.0) * np.clip(1.0 - floor_std / 4.0, 0.0, 1.0)
     )
+    digital_silence = float(max(clean_fraction, steady_low))
 
     return {
         "silence_exact_zero_ratio": exact_zero_ratio,
@@ -197,6 +213,7 @@ def silence_features(
         "silence_floor_db_abs": floor,
         "silence_floor_std_db": floor_std,
         "silence_floor_range_db": floor_range,
+        "silence_clean_fraction": clean_fraction,
         "digital_silence_score": digital_silence,
     }
 
