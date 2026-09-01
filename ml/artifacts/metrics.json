@@ -1,0 +1,418 @@
+{
+  "created_at": 1788290183.4571013,
+  "train_seconds": 128.7,
+  "model": "gradient_boosting",
+  "model_path": "ml/artifacts/bootstrap_model.joblib",
+  "corpus": "data/corpus",
+  "corpus_stats": {
+    "total": 120,
+    "bonafide": 60,
+    "spoof": 60,
+    "speakers": 12,
+    "methods": {
+      "human": 60,
+      "griffin_lim": 20,
+      "neural": 20,
+      "hybrid": 20
+    },
+    "languages": {
+      "te-IN": 30,
+      "hi-IN": 21,
+      "bn-IN": 20,
+      "mr-IN": 19,
+      "en-IN": 16,
+      "ta-IN": 14
+    }
+  },
+  "split": {
+    "strategy": "speaker-disjoint (train / calibration / test)",
+    "train_windows": 400,
+    "calibration_windows": 108,
+    "test_windows": 157,
+    "train_speakers": [
+      "spk002",
+      "spk003",
+      "spk005",
+      "spk007",
+      "spk008",
+      "spk009",
+      "spk011"
+    ],
+    "test_speakers": [
+      "spk000",
+      "spk001",
+      "spk006"
+    ]
+  },
+  "calibration": {
+    "a": 0.40824831231300734,
+    "b": -0.16632765569858968
+  },
+  "metrics_utterance_level": {
+    "accuracy": 0.9667,
+    "auc": 1.0,
+    "eer": 0.0,
+    "eer_percent": 0.0,
+    "eer_threshold": 0.0053,
+    "precision": 1.0,
+    "recall": 0.9333,
+    "f1": 0.9655,
+    "fpr_at_threshold": {
+      "0.35": 0.0,
+      "0.50": 0.0,
+      "0.60": 0.0,
+      "0.80": 0.0
+    },
+    "tpr_at_threshold": {
+      "0.35": 0.9333,
+      "0.50": 0.9333,
+      "0.60": 0.9333,
+      "0.80": 0.9333
+    },
+    "n_genuine": 15,
+    "n_spoof": 15,
+    "confusion": {
+      "tp": 14,
+      "tn": 15,
+      "fp": 0,
+      "fn": 1
+    }
+  },
+  "metrics_window_level": {
+    "accuracy": 0.9427,
+    "auc": 0.9935,
+    "eer": 0.0526,
+    "eer_percent": 5.26,
+    "eer_threshold": 0.0037,
+    "precision": 0.9718,
+    "recall": 0.9079,
+    "f1": 0.9388,
+    "fpr_at_threshold": {
+      "0.35": 0.0247,
+      "0.50": 0.0247,
+      "0.60": 0.0247,
+      "0.80": 0.0123
+    },
+    "tpr_at_threshold": {
+      "0.35": 0.9079,
+      "0.50": 0.9079,
+      "0.60": 0.9079,
+      "0.80": 0.9079
+    },
+    "n_genuine": 81,
+    "n_spoof": 76,
+    "confusion": {
+      "tp": 69,
+      "tn": 79,
+      "fp": 2,
+      "fn": 7
+    }
+  },
+  "per_method": {
+    "bonafide": {
+      "n": 15,
+      "false_positive_rate": 0.0,
+      "mean_score": 0.0003
+    },
+    "griffin_lim": {
+      "n": 10,
+      "detection_rate": 1.0,
+      "mean_score": 1.0
+    },
+    "neural": {
+      "n": 5,
+      "detection_rate": 0.8,
+      "mean_score": 0.801
+    }
+  },
+  "per_condition": {
+    "raw": {
+      "accuracy": 1.0,
+      "auc": 1.0,
+      "eer": 0.0,
+      "eer_percent": 0.0,
+      "eer_threshold": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "fpr_at_threshold": {
+        "0.35": 0.0,
+        "0.50": 0.0,
+        "0.60": 0.0,
+        "0.80": 0.0
+      },
+      "tpr_at_threshold": {
+        "0.35": 1.0,
+        "0.50": 1.0,
+        "0.60": 1.0,
+        "0.80": 1.0
+      },
+      "n_genuine": 8,
+      "n_spoof": 5,
+      "confusion": {
+        "tp": 5,
+        "tn": 8,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "telephony": {
+      "accuracy": 0.9412,
+      "auc": 1.0,
+      "eer": 0.0,
+      "eer_percent": 0.0,
+      "eer_threshold": 0.0053,
+      "precision": 1.0,
+      "recall": 0.9,
+      "f1": 0.9474,
+      "fpr_at_threshold": {
+        "0.35": 0.0,
+        "0.50": 0.0,
+        "0.60": 0.0,
+        "0.80": 0.0
+      },
+      "tpr_at_threshold": {
+        "0.35": 0.9,
+        "0.50": 0.9,
+        "0.60": 0.9,
+        "0.80": 0.9
+      },
+      "n_genuine": 7,
+      "n_spoof": 10,
+      "confusion": {
+        "tp": 9,
+        "tn": 7,
+        "fp": 0,
+        "fn": 1
+      }
+    }
+  },
+  "suspected_leakage": [],
+  "unseen_vocoder": {
+    "griffin_lim": {
+      "eer": 0.0,
+      "auc": 1.0,
+      "detection_rate_at_50": 1.0,
+      "false_positive_rate_at_50": 0.0,
+      "n_spoof_utterances": 20
+    },
+    "hybrid": {
+      "eer": 0.0,
+      "auc": 1.0,
+      "detection_rate_at_50": 1.0,
+      "false_positive_rate_at_50": 0.0,
+      "n_spoof_utterances": 20
+    },
+    "neural": {
+      "eer": 0.0,
+      "auc": 1.0,
+      "detection_rate_at_50": 0.95,
+      "false_positive_rate_at_50": 0.0,
+      "n_spoof_utterances": 20
+    }
+  },
+  "rule_calibration": {
+    "hf_cliff_depth_db": {
+      "feature": "hf_cliff_depth_db",
+      "original": [
+        25.0,
+        80.0
+      ],
+      "samples": 203,
+      "auc": 0.7763,
+      "action": "refitted",
+      "fitted": [
+        42.367088,
+        80.763018
+      ],
+      "weight": 1.6674
+    },
+    "hf_energy_ratio": {
+      "feature": "hf_energy_ratio",
+      "original": [
+        0.045,
+        0.004
+      ],
+      "samples": 203,
+      "auc": 0.6572,
+      "action": "refitted",
+      "fitted": [
+        0.001095,
+        2e-06
+      ],
+      "weight": 0.9366
+    },
+    "spec_rolloff95_mean": {
+      "feature": "spec_rolloff95_mean",
+      "original": [
+        4200.0,
+        2200.0
+      ],
+      "samples": 203,
+      "auc": 0.684,
+      "action": "refitted",
+      "fitted": [
+        3346.005249,
+        1876.127617
+      ],
+      "weight": 0.805
+    },
+    "mel_frame_corr": {
+      "feature": "mel_frame_corr",
+      "original": [
+        0.92,
+        0.74
+      ],
+      "samples": 203,
+      "auc": 0.8062,
+      "action": "refitted",
+      "fitted": [
+        0.893059,
+        0.858063
+      ],
+      "weight": 1.308
+    },
+    "env_second_diff": {
+      "feature": "env_second_diff",
+      "original": [
+        0.2,
+        0.55
+      ],
+      "samples": 203,
+      "auc": 0.5537,
+      "action": "refitted",
+      "fitted": [
+        0.220941,
+        0.701218
+      ],
+      "weight": 0.6174
+    },
+    "digital_silence_score": {
+      "feature": "digital_silence_score",
+      "original": [
+        0.05,
+        0.45
+      ],
+      "samples": 203,
+      "action": "kept defaults (no spread in genuine speech)"
+    },
+    "silence_exact_zero_ratio": {
+      "feature": "silence_exact_zero_ratio",
+      "original": [
+        0.02,
+        0.25
+      ],
+      "samples": 203,
+      "auc": 0.7407,
+      "action": "refitted",
+      "fitted": [
+        0.004938,
+        0.009868
+      ],
+      "weight": 0.9851
+    },
+    "comb_strength": {
+      "feature": "comb_strength",
+      "original": [
+        0.35,
+        0.75
+      ],
+      "samples": 203,
+      "auc": 0.3474,
+      "action": "pruned (AUC 0.347 < 0.55)",
+      "fitted": [
+        0.39447,
+        0.566883
+      ],
+      "weight": 0.0
+    },
+    "phase_coherence": {
+      "feature": "phase_coherence",
+      "original": [
+        0.4,
+        0.18
+      ],
+      "samples": 203,
+      "auc": 0.3155,
+      "action": "pruned (AUC 0.316 < 0.55)",
+      "fitted": [
+        0.39744,
+        0.375969
+      ],
+      "weight": 0.0
+    },
+    "residual_kurtosis": {
+      "feature": "residual_kurtosis",
+      "original": [
+        6.0,
+        2.8
+      ],
+      "samples": 203,
+      "auc": 0.6285,
+      "action": "refitted",
+      "fitted": [
+        5.684423,
+        5.397698
+      ],
+      "weight": 0.5639
+    },
+    "spec_flatness_mean": {
+      "feature": "spec_flatness_mean",
+      "original": [
+        0.02,
+        0.14
+      ],
+      "samples": 203,
+      "auc": 0.2665,
+      "action": "pruned (AUC 0.266 < 0.55)",
+      "fitted": [
+        0.221669,
+        0.357037
+      ],
+      "weight": 0.0
+    },
+    "mod_syllabic_ratio": {
+      "feature": "mod_syllabic_ratio",
+      "original": [
+        0.55,
+        0.18
+      ],
+      "samples": 203,
+      "auc": 0.3986,
+      "action": "pruned (AUC 0.399 < 0.55)",
+      "fitted": [
+        0.215855,
+        0.08319
+      ],
+      "weight": 0.0
+    }
+  },
+  "feature_importances": {
+    "silence_floor_db": 0.33405,
+    "phase_advance_entropy": 0.32975,
+    "silence_floor_db_abs": 0.09635,
+    "quantization_levels": 0.03836,
+    "pause_mean": 0.02874,
+    "ltas_ripple_db": 0.02358,
+    "mfcc12_std": 0.02172,
+    "comb_strength": 0.01363,
+    "mfcc6_std": 0.01256,
+    "speech_ratio": 0.01059,
+    "mfcc11_std": 0.01005,
+    "spec_slope_mean": 0.00989,
+    "hf_shelf_flatness": 0.00805,
+    "phase_coherence": 0.00616,
+    "mod_peak_hz": 0.00507,
+    "mfcc0_std": 0.00355,
+    "dc_offset": 0.00334,
+    "silence_exact_zero_ratio": 0.0031,
+    "mfcc9_std": 0.00308,
+    "speech_run_mean": 0.00244,
+    "silence_near_zero_ratio": 0.00229,
+    "voiced_ratio": 0.00201,
+    "spec_entropy_mean": 0.002,
+    "spec_centroid_mean": 0.00181,
+    "mel_frame_corr": 0.00172
+  },
+  "caveat": "If --corpus was the bootstrap corpus, these numbers describe the pipeline on simulated audio and say nothing about real TTS systems. Retrain on ASVspoof or In-the-Wild before quoting them. See docs/MODEL_CARD.md."
+}

@@ -25,6 +25,7 @@ pnpm-debug.log*
 
 # Data / models / runtime
 data/raw/
+data/corpus/
 data/interim/
 data/corpus/
 *.wav
@@ -50,3 +51,8 @@ logs/
 Thumbs.db
 .idea/
 .vscode/
+
+# keep the published metrics, not the caches
+!ml/artifacts/metrics.json
+!ml/artifacts/evaluation.json
+ml/artifacts/cache/
