@@ -1,0 +1,55 @@
+# One command brings up the whole stack:
+#     docker compose -f deploy/docker-compose.yml up --build
+#
+#     dashboard  http://localhost:8080
+#     console    http://localhost:8080/console
+#     API docs   http://localhost:8080/docs
+
+name: voiceguard
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    environment:
+      VG_ENVIRONMENT: ${VG_ENVIRONMENT:-production}
+      VG_RETENTION_MODE: ${VG_RETENTION_MODE:-features_only}
+      VG_RETENTION_TTL_SECONDS: ${VG_RETENTION_TTL_SECONDS:-86400}
+      VG_AUTH_REQUIRED: ${VG_AUTH_REQUIRED:-true}
+      VG_API_KEYS: ${VG_API_KEYS:-demo-key-sih26104}
+      VG_JWT_SECRET: ${VG_JWT_SECRET:-change-me-in-production}
+      VG_PII_SALT: ${VG_PII_SALT:-change-me-too}
+      VG_MAX_ACTIVE_SESSIONS: ${VG_MAX_ACTIVE_SESSIONS:-500}
+      VG_CORS_ORIGINS: ${VG_CORS_ORIGINS:-*}
+      VG_LOG_LEVEL: ${VG_LOG_LEVEL:-INFO}
+    volumes:
+      # Audit database survives a container rebuild. Nothing here is raw audio unless
+      # VG_RETENTION_MODE is explicitly set to raw_audio.
+      - voiceguard-runtime:/app/runtime
+    expose:
+      - "8000"
+    ports:
+      - "${VG_BACKEND_PORT:-8000}:8000"
+    restart: unless-stopped
+    # The service is stateless apart from in-memory sessions, so scaling out only needs
+    # sticky routing on session_id:  docker compose up --scale backend=4
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+    ports:
+      - "${VG_DASHBOARD_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  voiceguard-runtime:

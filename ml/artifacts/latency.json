@@ -1,0 +1,44 @@
+{
+  "windows": 30,
+  "stages": {
+    "spectral": {
+      "p50": 10.09,
+      "p95": 14.35,
+      "p99": 35.8,
+      "mean": 11.4,
+      "max": 35.8
+    },
+    "prosody": {
+      "p50": 43.11,
+      "p95": 68.16,
+      "p99": 69.5,
+      "mean": 45.1,
+      "max": 69.5
+    },
+    "artifacts": {
+      "p50": 21.01,
+      "p95": 28.47,
+      "p99": 28.66,
+      "mean": 21.71,
+      "max": 28.66
+    },
+    "embedding": {
+      "p50": 39.65,
+      "p95": 61.78,
+      "p99": 74.69,
+      "mean": 43.17,
+      "max": 74.69
+    }
+  },
+  "full_pipeline_ms": {
+    "p50": 106.47,
+    "p95": 124.08,
+    "p99": 130.23,
+    "mean": 109.23,
+    "max": 130.23
+  },
+  "hop_budget_ms": 500.0,
+  "within_budget": true,
+  "concurrent_calls_per_core": 4,
+  "model_loaded": true
+}

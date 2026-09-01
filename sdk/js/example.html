@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>VoiceGuard SDK — 20-line integration</title>
+<style>body{font:15px/1.6 system-ui;max-width:600px;margin:40px auto;padding:0 20px}
+pre{background:#f4f6ff;padding:14px;border-radius:10px;overflow:auto}</style>
+<h1>VoiceGuard SDK example</h1>
+<p>The smallest useful integration: pick a call recording, get a verdict.</p>
+<input type="file" id="file" accept="audio/*">
+<pre id="out">…</pre>
+
+<script type="module">
+import { VoiceGuardClient } from './voiceguard.js';
+
+const client = new VoiceGuardClient({ baseUrl: location.origin });
+
+document.getElementById('file').addEventListener('change', async (event) => {
+  const out = document.getElementById('out');
+  out.textContent = 'Analysing…';
+  try {
+    const result = await client.analyzeFile(event.target.files[0], { profile: 'wire_transfer' });
+    out.textContent = result.explain();
+    out.style.borderLeft = `4px solid ${result.isHighRisk ? '#dc2626' : '#059669'}`;
+  } catch (error) {
+    out.textContent = `Error: ${error.message}`;
+  }
+});
+</script>

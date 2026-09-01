@@ -1,0 +1,54 @@
+# VoiceGuard inference service.
+#
+# Multi-stage so the runtime image carries no compilers. The image is CPU-only by design:
+# the whole feature and model stack is NumPy/SciPy/scikit-learn, which is what makes the
+# edge-inference path in docs/PRIVACY.md possible and keeps the cost model in
+# docs/FEASIBILITY.md honest. No CUDA, no 6 GB base image.
+
+FROM python:3.11-slim AS builder
+
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY backend/requirements.txt .
+RUN python -m venv /opt/venv && /opt/venv/bin/pip install --upgrade pip \
+    && /opt/venv/bin/pip install -r requirements.txt
+
+
+FROM python:3.11-slim AS runtime
+
+# libsndfile is the only runtime system dependency (soundfile links against it).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libsndfile1 curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 voiceguard
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app/backend \
+    VG_DATABASE_URL=/app/runtime/voiceguard.sqlite3 \
+    VG_MODEL_DIR=/app/ml/artifacts
+
+WORKDIR /app
+COPY --chown=voiceguard:voiceguard backend/ ./backend/
+COPY --chown=voiceguard:voiceguard ml/ ./ml/
+COPY --chown=voiceguard:voiceguard docs/ ./docs/
+
+RUN mkdir -p /app/runtime && chown -R voiceguard:voiceguard /app/runtime
+USER voiceguard
+
+EXPOSE 8000
+
+# The container is healthy while the process serves, even when a detection layer has
+# degraded — /v1/health returns 200 with a `degraded` list rather than failing, so a
+# fallback-mode node is not pulled out of the load balancer for no reason.
+HEALTHCHECK --interval=30s --timeout=4s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8000/v1/health || exit 1
+
+CMD ["uvicorn", "voiceguard.api.app:app", "--host", "0.0.0.0", "--port", "8000", \
+     "--app-dir", "backend", "--workers", "1"]

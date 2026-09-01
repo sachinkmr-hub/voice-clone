@@ -1,0 +1,17 @@
+.git
+.venv
+venv
+node_modules
+frontend/node_modules
+frontend/dist
+data/corpus
+data/raw
+ml/artifacts/cache
+runtime
+**/__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+*.sqlite3
+*.wav
+!ml/artifacts/bootstrap_model.joblib

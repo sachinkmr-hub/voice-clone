@@ -1,0 +1,145 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Compile check
+        run: python -m compileall -q backend/voiceguard ml sdk/python
+
+      - name: Tests
+        run: python -m pytest backend/tests -q --durations=10
+
+      # The pipeline has to survive a clean checkout with no data and no model, because
+      # that is exactly the state a judge or a new contributor starts from.
+      - name: Cold-start smoke test (no corpus, no model artifact)
+        run: |
+          python - <<'PY'
+          import sys; sys.path.insert(0, "backend")
+          from fastapi.testclient import TestClient
+          from voiceguard.api.app import create_app
+          from voiceguard.config import Settings
+
+          settings = Settings(database_url=":memory:", model_dir="/nonexistent",
+                              model_file="absent.joblib")
+          with TestClient(create_app(settings)) as client:
+              health = client.get("/v1/health").json()
+              assert health["model_loaded"] is False, health
+              assert health["degraded"], "degradation must be reported, not hidden"
+              wav = client.get("/v1/demo/sample?kind=cloned&seconds=5").content
+              body = client.post("/v1/analyze/file",
+                                 files={"file": ("d.wav", wav, "audio/wav")}).json()
+              assert 0 <= body["score"] <= 100, body
+              print("cold start OK — heuristic detector scored", body["score"])
+          PY
+
+  ml-pipeline:
+    name: ML pipeline (corpus → train → evaluate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - run: pip install -r backend/requirements.txt
+
+      - name: Build a small corpus
+        run: python -m ml.datasets.build --out data/ci-corpus --per-class 16 --speakers 6
+
+      - name: Train
+        run: python -m ml.train --corpus data/ci-corpus --out ml/ci-artifacts --max-windows 3 --skip-unseen
+
+      - name: Assert the run is honest
+        run: |
+          python - <<'PY'
+          import json, sys
+          report = json.load(open("ml/ci-artifacts/metrics.json"))
+
+          # Speaker leakage between train and test would invalidate every number below it.
+          split = report["split"]
+          overlap = set(split["train_speakers"]) & set(split["test_speakers"])
+          assert not overlap, f"speaker leakage: {overlap}"
+
+          # A single feature separating the classes almost perfectly means the corpus is
+          # leaking, not that the detector is good. Fail loudly rather than shipping it.
+          leaks = report.get("suspected_leakage") or []
+          assert not leaks, f"suspected corpus leakage: {[l['feature'] for l in leaks]}"
+
+          metrics = report["metrics_utterance_level"]
+          assert 0.0 <= metrics["eer"] <= 1.0
+          print(f"EER {metrics['eer_percent']}%  AUC {metrics['auc']}  acc {metrics['accuracy']}")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ml-metrics
+          path: ml/ci-artifacts/metrics.json
+
+  frontend:
+    name: Dashboard build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.backend
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build dashboard image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.frontend
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
